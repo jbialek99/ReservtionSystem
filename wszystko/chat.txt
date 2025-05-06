@@ -1,0 +1,65 @@
+Rozumiem, jeśli chcesz stworzyć encję do rezerwacji sali, ale nie wiesz, jakie dokładnie dane powinieneś pobrać z Outlooka, to możemy podejść do tego krok po kroku. W zależności od tego, co chcesz osiągnąć, dane, które będziesz musiał pobrać, mogą się różnić, ale oto kilka podstawowych informacji, które mogą być przydatne:
+
+1. Rezerwacja sali - podstawowe dane
+Nazwa sali: Jeśli masz różne sale do rezerwacji, warto mieć pole z nazwą sali.
+Data i godzina rozpoczęcia: Czas, kiedy zaczyna się rezerwacja.
+Data i godzina zakończenia: Czas, kiedy kończy się rezerwacja.
+Opis rezerwacji: Krótkie wyjaśnienie, czym jest rezerwacja (np. spotkanie, konferencja, szkolenie).
+Osoba rezerwująca: Kto dokonuje rezerwacji (możesz przechowywać ID użytkownika lub email).
+Status rezerwacji: Może to być "Zarezerwowane", "Oczekujące", "Anulowane" itp.
+2. Dane z Outlooka (przez Microsoft Graph API)
+Tytuł wydarzenia: W Outlooku wydarzenia mają tytuł (np. "Spotkanie z klientem").
+Start i koniec wydarzenia: Data i godzina rozpoczęcia oraz zakończenia wydarzenia w Outlooku.
+Lokalizacja: Jeśli wydarzenie ma przypisaną lokalizację (np. sala konferencyjna), to również możesz to pobrać.
+Uczestnicy: Lista uczestników wydarzenia – czyli kto bierze udział w danej rezerwacji. Może być to istotne, jeśli chcesz wiedzieć, kto jeszcze jest przypisany do danego spotkania.
+Organizator: Kto stworzył wydarzenie w Outlooku (może to być ta sama osoba, która rezerwuje salę).
+Opis wydarzenia: Szczegóły dotyczące spotkania.
+Status wydarzenia: Czy wydarzenie jest aktywne, anulowane, czy odwołane.
+3. Propozycja struktury encji
+Na podstawie powyższego, twoja encja rezerwacji może wyglądać mniej więcej tak:
+
+plaintext
+Kopiuj
+Edytuj
+RezerwacjaSali
+- Id (unikalny identyfikator)
+- NazwaSali (np. Sala A)
+- DataRozpoczecia (Data i godzina rozpoczęcia)
+- DataZakonczenia (Data i godzina zakończenia)
+- Opis (np. Spotkanie z klientem)
+- OsobaRezerwujaca (ID użytkownika lub email)
+- Status (np. Zarezerwowane, Oczekujące)
+- OutlookEventId (Id wydarzenia w Outlooku, aby powiązać z kalendarzem)
+- TytulWydarzenia (np. Spotkanie, Prezentacja)
+- Lokalizacja (np. Sala Konferencyjna 1)
+- Uczestnicy (Lista uczestników)
+- Organizator (Osoba, która stworzyła wydarzenie)
+- OpisWydarzenia (Szczegóły wydarzenia z Outlooka)
+- DataZalozeniaWydarzenia (Data, kiedy wydarzenie zostało stworzone w Outlooku)
+- StatusWydarzenia (Status wydarzenia w Outlooku, np. Oczekujące, Aktywne)
+4. Jak synchronizować te dane?
+Po zapisaniu rezerwacji sali w aplikacji, możesz wysłać dane do Outlooka (np. przez Microsoft Graph API), tworząc nowe wydarzenie w kalendarzu.
+Po utworzeniu wydarzenia w Outlooku, możesz również zapisać w swojej bazie danych OutlookEventId, żeby w przyszłości łatwiej powiązać rezerwację z wydarzeniem w Outlooku (np. przy edycji czy anulowaniu rezerwacji).
+5. Co warto rozważyć przy integracji z Outlookiem?
+Dostępność sali: Aby sprawdzić, czy sala jest dostępna w określonym czasie, możesz zapytać API o dostępność tego wydarzenia w kalendarzu przed zapisaniem rezerwacji.
+Edycja i aktualizacja: Jeśli użytkownik edytuje rezerwację w twojej aplikacji, powinieneś również zaktualizować odpowiednie wydarzenie w Outlooku.
+6. Przykład zapytania do Microsoft Graph API (pobieranie wydarzeń)
+Pobieranie wydarzenia z Outlooka może wyglądać tak:
+
+http
+Kopiuj
+Edytuj
+GET https://graph.microsoft.com/v1.0/me/events
+To zwróci listę wydarzeń dla użytkownika. Możesz wtedy sprawdzić, czy data i godzina rezerwacji pokrywają się z istniejącymi wydarzeniami w kalendarzu.
+
+Podsumowując:
+Twoja aplikacja powinna zbierać dane związane z rezerwacją sali (nazwa, czas, uczestnicy) oraz z Outlooka (wydarzenie, uczestnicy, organizator). Dzięki połączeniu tych dwóch źródeł danych będziesz w stanie stworzyć skuteczny system rezerwacji sali, który synchronizuje się z Outlookiem.
+
+Czy taka struktura encji i pomysł na integrację Ci odpowiada, czy chcesz dodać coś jeszcze?
+
+
+
+
+
+
+

@@ -1,0 +1,3 @@
+Mam w fazie robienia aplikacje java spring th js css html i baza danych sql i teraz nie wiem czy dobrze zarejestrowalem swoja aplikacje ale nie jest do konca skonfigurowana w azure zeby moc uwierzytelniac oauth2 , bo apka ma sluzyc
+do rezerwacji sal konferencyjnych, no i przy salach maja byc tablety ktore za pomoca webview otworzy apke w pelnoekranowej postaci bez paska url. Pomozesz mnie przeprowadzic przez rejestracje? Ja bede po kolei wklejal kroki a ty bys mi pomogl 
+wybrac co zrobic aby udalo sie to zrealizowac tylko w azure na razie 

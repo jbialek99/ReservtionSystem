@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/other-localization.css">
+    <title>Inna lokalizacja</title>
+</head>
+<body>
+<div class="select-container">
+    <h2>Wybierz lokalizację</h2>
+    <label for="localizationSelect"></label>
+    <select id="localizationSelect" onchange="showSelectedLocalization()">
+        <option value="">-- Wybierz lokalizację --</option>
+        <optgroup th:each="localization : ${localizations}" th:label="'🏙️  ' + ${localization.city} + ' 🌆 '">
+            <option th:each="building : ${localization.buildings}"
+                    th:value="${building.id}"
+                    th:text="${building.name}">
+            </option>
+        </optgroup>
+    </select>
+</div>
+
+<p>Wybrany budynek: <span id="selectedBuilding">Brak wyboru</span></p>
+<a th:href="@{/localization}" class="return-tile">Powrót</a>
+
+<script>
+    function showSelectedLocalization() {
+        let select = document.getElementById("localizationSelect");
+        let selectedOption = select.options[select.selectedIndex];
+        let buildingId = selectedOption.value; // ID budynku
+        if (buildingId) {
+            // Przekierowanie na stronę z salami w wybranym budynku
+            window.location.href = "/building/" + buildingId;  // Zmieniaj URL na odpowiedni format
+        }
+    }
+</script>
+
+</body>
+</html>

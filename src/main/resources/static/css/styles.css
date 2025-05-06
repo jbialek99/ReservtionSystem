@@ -1,0 +1,52 @@
+/* Stylowanie kalendarza */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+    text-align: center;
+    padding: 20px;
+}
+
+h2 {
+    color: #333;
+}
+
+#calendar {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.fc-toolbar-title {
+    font-size: 22px;
+    font-weight: bold;
+    color: #333;
+}
+
+.fc-button {
+    background: #1a73e8;
+    border: none;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    transition: 0.3s;
+}
+
+.fc-button:hover {
+    background: #155ab6;
+}
+
+.fc-day-today {
+    background: #e8f0fe !important;
+}
+
+.fc-event {
+    background-color: #4285F4;
+    border: none;
+    color: white;
+    font-size: 14px;
+    padding: 5px;
+    border-radius: 4px;
+}

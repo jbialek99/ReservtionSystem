@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/city.css"> <!-- Link do odpowiedniego pliku CSS -->
+    <title>Sale</title>
+</head>
+<body>
+<!-- Kontener na selekcję sali -->
+<div class="select-container">
+    <h2>Wybierz miasto</h2>
+    <label for="citySelect"></label>
+    <select id="citySelect" onchange="showSelectedCity()">
+        <option value="">-- Wybierz miasto --</option>
+        <option th:each="localization : ${localizations}" th:value="${localization.id}"
+                th:text="${localization.city}">
+        </option>
+    </select>
+
+    <p>Wybrane miasto: <span id="selectedCity">Brak wyboru</span></p>
+
+    <!-- Przycisk do wyboru sali -->
+    <button id="selectButton" onclick="chooseCity()">Wybierz</button>
+</div>
+
+<!-- Kafelek powrotu -->
+<a th:href="@{/localization}" class="return-tile">Powrót</a>
+
+<script>
+    function showSelectedCity() {
+        let select = document.getElementById("citySelect");
+        document.getElementById("selectedCity").innerText = select.options[select.selectedIndex].text;
+    }
+
+    function chooseCity() {
+        let select = document.getElementById("citySelect");
+        let selectedValue = select.value; // Pobieramy wartość wybraną z listy
+
+        // Jeśli wartość została wybrana (nie jest pusta)
+        if (selectedValue) {
+            // Przekierowanie na stronę z wybraną salą
+            window.location.href = "/city/" + selectedValue; // Zmieniamy URL na odpowiednią stronę
+        } else {
+            alert("Proszę wybrać salę.");
+        }
+    }
+</script>
+
+</body>
+</html>

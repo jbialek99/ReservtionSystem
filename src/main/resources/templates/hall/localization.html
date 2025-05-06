@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/localization.css"> <!-- Link do odpowiedniego pliku CSS -->
+    <title>Sale</title>
+</head>
+<body>
+
+<div class="container">
+    <!-- Pozostałe kafelki obok siebie -->
+    <a th:href="@{/here}" class="tile">Obecna lokalizacja</a>
+    <a th:href="@{/other-localization}" class="tile">Inna lokalizacja</a>
+</div>
+
+<!-- Kafelek powrotu poniżej innych kafelków -->
+<a th:href="@{/home}" class="tile return-tile">Powrot</a>
+
+</body>
+</html>
+

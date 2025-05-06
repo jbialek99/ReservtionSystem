@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalendarz sali</title>
+
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<h2>Kalendarz rezerwacji sali: <span th:text="${hall.name}"></span></h2>
+
+
+<div id="calendar" th:data-hall-id="${hall.id}"></div>
+
+<a th:href="@{/localization}" class="return-tile">Powrót do listy sal</a>
+
+<!-- FullCalendar JS -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const calendarEl = document.getElementById('calendar');
+        const hallId = calendarEl.dataset.hallId; // Pobieranie ID sali dynamicznie
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            editable: true,
+            events: function(info, successCallback, failureCallback) {
+                fetch('/api/calendar/events') // Pobierz wydarzenia z API
+                    .then(response => response.json())
+                    .then(data => successCallback(data))
+                    .catch(error => failureCallback(error));
+            },
+            eventDrop: function(info) {
+                const updatedEvent = {
+                    id: info.event.id,
+                    startMeeting: info.event.start.toISOString(),
+                    endMeeting: info.event.end.toISOString(),
+                };
+
+                fetch('/api/reservations/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedEvent)
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Nie udało się zapisać zmian');
+                        }
+                        alert('Rezerwacja została zaktualizowana!');
+                    })
+                    .catch(error => {
+                        alert('Błąd: ' + error.message);
+                    });
+            },
+            eventResize: function(info) {
+                const updatedEvent = {
+                    id: info.event.id,
+                    startMeeting: info.event.start.toISOString(),
+                    endMeeting: info.event.end.toISOString(),
+                };
+
+                fetch('/api/reservations/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedEvent)
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Nie udało się zapisać zmian');
+                        }
+                        alert('Rezerwacja została zaktualizowana!');
+                    })
+                    .catch(error => {
+                        alert('Błąd: ' + error.message);
+                    });
+            },
+            dateClick: function(info) {
+                const start = info.dateStr;
+                const end = new Date(info.dateStr);
+                end.setHours(end.getHours() + 1);
+
+                const userConfirmed = confirm(`Czy chcesz zarezerwować salę od ${start} do ${end.toISOString()}?`);
+                if (userConfirmed) {
+                    const newReservation = {
+                        startMeeting: start,
+                        endMeeting: end.toISOString(),
+                    };
+
+                    fetch(`/api/reservations/hall/${hallId}/reserve/1`, { // Używamy stałego ID użytkownika 1
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(newReservation)
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Nie udało się zapisać rezerwacji');
+                            }
+                            alert('Rezerwacja została pomyślnie utworzona!');
+                            calendar.refetchEvents(); // Przeładowujemy wydarzenia
+                        })
+                        .catch(error => {
+                            alert('Błąd: ' + error.message);
+                        });
+                }
+            }
+        });
+
+        calendar.render();
+    });
+</script>
+</body>
+</html>

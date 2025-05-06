@@ -1,0 +1,10 @@
+
+PS C:\Users\Kuba\Desktop\letsgo> docker exec -it f36906e5ad6ce22f8086018e395ab2803568600a12d5e147f444f9f639fa7dbd bash                             bash-5.1#
+bash-5.1# mysqldump -u root -p actual > /tmp/actual.sql
+Enter password:
+bash-5.1# mysqldump -u root -p actual > /tmp/actual.sql
+Enter password:
+bash-5.1# exit
+PS C:\Users\Kuba\Desktop\letsgo> docker cp f36906e5ad6ce22f8086018e395ab2803568600a12d5e147f444f9f639fa7dbd:/tmp/actual.sql C:\Users\Kuba\Desktop\letsgo\actual.sql
+Successfully copied 10.2kB to C:\Users\Kuba\Desktop\letsgo\actual.sql
+PS C:\Users\Kuba\Desktop\letsgo>

@@ -1,0 +1,63 @@
+"UZYTKOWNICY:" 
+
+User accounts for \\JB-159815
+
+-------------------------------------------------------------------------------
+a159815                  Administrator            DefaultAccount           
+Guest                    u159815                  WDAGUtilityAccount       
+The command completed successfully.
+
+"ADMIN:" 
+User name                    a159815
+Full Name                    
+Comment                      
+User's comment               
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            1/14/2025 11:56:58 AM
+Password expires             2/25/2025 11:56:58 AM
+Password changeable          1/14/2025 11:56:58 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script                 
+User profile                 
+Home directory               
+Last logon                   Never
+
+Logon hours allowed          All
+
+Local Group Memberships      *Users                
+Global Group memberships     *None                 
+The command completed successfully.
+
+"USER:" 
+User name                    u159815
+Full Name                    
+Comment                      
+User's comment               
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            1/14/2025 11:56:11 AM
+Password expires             2/25/2025 11:56:11 AM
+Password changeable          1/14/2025 11:56:11 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script                 
+User profile                 
+Home directory               
+Last logon                   Never
+
+Logon hours allowed          All
+
+Local Group Memberships      *Users                
+Global Group memberships     *None                 
+The command completed successfully.
+
