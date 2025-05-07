@@ -1,0 +1,28 @@
+Aby użytkownik w Outlooku mógł wybrać salę z listy lokalizacji, musisz zintegrować Twoją aplikację z funkcją "Room Finder" / "Room Mailboxes" w Microsoft Exchange / Outlook.
+
+Co trzeba wiedzieć:
+Outlook (i Microsoft Graph API) nie pozwala bezpośrednio podpiąć własnego REST API do wyboru sal. Outlook oczekuje, że sale są zdefiniowane jako tzw. room mailboxes w Microsoft 365 / Exchange. Ale można to połączyć z Twoją aplikacją.
+
+🔧 Scenariusz hybrydowy (najbardziej realistyczny)
+Stwórz każdą salę jako Room Mailbox w Exchange / Microsoft 365
+
+To robisz przez PowerShell lub admin center.
+
+Np. room-a@example.com, room-b@example.com.
+
+Te skrzynki mogą być fake, ale służą jako reprezentacja sali w Outlooku.
+
+W Twojej aplikacji powiąż każdą salę z tym adresem mailowym w bazie danych
+Przykładowa tabela rooms:
+
+sql
+Kopiuj
+Edytuj
+| id | name       | email                |
+|----|------------|----------------------|
+| 1  | Sala A     | room-a@example.com   |
+| 2  | Sala B     | room-b@example.com   |
+W Outlooku użytkownik wybiera salę (Room Mailbox) → Exchange zapisuje ją w polu location.displayName i location.emailAddress wydarzenia.
+
+Twoja aplikacja (np. endpoint /hall/{id}) może na podstawie location.emailAddress rozpoznać, która sala została wybrana i wyświetlić jej kalendarz lub dane.
+

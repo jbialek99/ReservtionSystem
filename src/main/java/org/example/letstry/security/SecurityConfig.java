@@ -32,7 +32,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers("/login", "/home", "/css/**", "/js/**", "/logout", "/welcome",
                                 "/images/**", "/localization", "/current-localization",
-                                "/other-localization", "/building/**","/events").permitAll()
+                                "/other-localization", "/building/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2

@@ -1,5 +1,11 @@
 package org.example.letstry.model;
 
+
+// porownac z grafp explorer
+
+
+
+
 public class GraphUser {
     private String id;
     private String displayName;

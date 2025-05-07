@@ -7,6 +7,16 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+/*
+Dodane: pobranie danych z openid connect i w security wyswietlenie w logach przy probie logowania
+
+
+Dodac:
+Przypisanie roli,
+Zapis danych do bazy,
+Przekształcenie claimów
+
+*/
 @Service
 public class CustomOidcUserService extends OidcUserService {
 
@@ -14,11 +24,11 @@ public class CustomOidcUserService extends OidcUserService {
     public OidcUser loadUser(OidcUserRequest userRequest) {
         OidcUser user = super.loadUser(userRequest);
 
-        // Zaloguj odpowiedź JSON z UserInfoEndpoint
+
         Map<String, Object> userInfoClaims = user.getClaims();
         System.out.println("User Info Claims: " + userInfoClaims);
 
-        // Możesz również logować je w bardziej szczegółowy sposób
+
         userInfoClaims.forEach((key, value) -> {
             System.out.println(key + ": " + value);
         });

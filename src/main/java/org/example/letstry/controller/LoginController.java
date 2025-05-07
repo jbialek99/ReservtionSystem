@@ -34,11 +34,16 @@ public class LoginController {
     }
  */
 
+
+    //zmienic na Authentication w celu unikniecia musu logowania, SecurityContextHolder,Principal, instanceof OAuth2User user
     @GetMapping("/home")
     public String home(@AuthenticationPrincipal OAuth2User principal,
                        @RegisteredOAuth2AuthorizedClient("azure") OAuth2AuthorizedClient authorizedClient,
                        Model model) {
-        addUserAttributesToModel(principal, model);
+
+        if (principal != null) {
+            addUserAttributesToModel(principal, model);
+        }
         if (authorizedClient != null) {
             model.addAttribute("accessToken", authorizedClient.getAccessToken().getTokenValue());
         }
@@ -46,6 +51,7 @@ public class LoginController {
     }
 
 
+//usunac zbedne atrybuty wywalic web clienta do beana, polaczyc z full callendar
     @GetMapping("/events")
     public String getEvents(Model model,
                             @RegisteredOAuth2AuthorizedClient("azure") OAuth2AuthorizedClient authorizedClient,
@@ -92,7 +98,7 @@ public class LoginController {
 
         return "events";
     }
-
+//wyjebac webclienta do beana, zmienic json i dodac odpowiednie atrybuty, polaczyc lokalizacje z sala, zastanowic sie nad zmiana bazy na taka ktora przechowuje zmienne geograficzne, polaczyc z full callendar
     @PostMapping("/createEvent")
     public String createEvent(@RegisteredOAuth2AuthorizedClient("azure") OAuth2AuthorizedClient authorizedClient,
                               Model model) {
@@ -104,7 +110,7 @@ public class LoginController {
         String accessToken = authorizedClient.getAccessToken().getTokenValue();
 
         WebClient client = WebClient.builder()
-                .baseUrl("https://graph.microsoft.com/v1.0")
+                .baseUrl(GRAPH_API_BASE_URL)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
@@ -112,11 +118,11 @@ public class LoginController {
         Map<String, Object> event = Map.of(
                 "subject", "My event123",
                 "start", Map.of(
-                        "dateTime", "2025-05-06T15:12:59",
+                        "dateTime", "2025-05-07T11:12:59",
                         "timeZone", "UTC"
                 ),
                 "end", Map.of(
-                        "dateTime", "2025-05-13T15:12:59",
+                        "dateTime", "2025-05-07T15:12:59",
                         "timeZone", "UTC"
                 )
         );
@@ -139,7 +145,7 @@ public class LoginController {
 
 
 
-
+//wyjebac do serwisu
     private void addUserAttributesToModel(OAuth2User principal, Model model) {
         if (principal != null) {
             model.addAttribute("username", principal.getAttribute("name"));

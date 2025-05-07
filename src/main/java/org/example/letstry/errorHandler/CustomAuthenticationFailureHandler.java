@@ -18,10 +18,9 @@ public class CustomAuthenticationFailureHandler extends SimpleUrlAuthenticationF
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
-        if (exception instanceof OAuth2AuthenticationException) {
-            OAuth2AuthenticationException oauthException = (OAuth2AuthenticationException) exception;
+        if (exception instanceof OAuth2AuthenticationException oauthException) {
             LOGGER.severe("OAuth2 Authentication Error: " + oauthException.getMessage());
-            // Możesz także zalogować szczegóły wyjątku
+
             oauthException.printStackTrace();
         }
         super.onAuthenticationFailure(request, response, exception);
