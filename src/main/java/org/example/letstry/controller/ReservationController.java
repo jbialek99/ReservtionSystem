@@ -1,9 +1,9 @@
 package org.example.letstry.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.example.letstry.model.Hall;
 import org.example.letstry.model.Reservation;
 import org.example.letstry.model.User;
+import org.example.letstry.repository.ReservationRepository;
 import org.example.letstry.service.GraphTokenService;
 import org.example.letstry.service.HallService;
 import org.example.letstry.service.ReservationService;
@@ -14,11 +14,10 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/reservations")
@@ -27,16 +26,19 @@ public class ReservationController {
     private final ReservationService reservationService;
     private final HallService hallService;
     private final UserService userService;
-    private final WebClient webClient;
     private final GraphTokenService graphTokenService;
+    private final ReservationRepository reservationRepository;
 
-    public ReservationController(ReservationService reservationService, HallService hallService,
-                                 UserService userService, WebClient webClient, GraphTokenService graphTokenService) {
+    public ReservationController(ReservationService reservationService,
+                                 HallService hallService,
+                                 UserService userService,
+                                 GraphTokenService graphTokenService,
+                                 ReservationRepository reservationRepository) {
         this.reservationService = reservationService;
         this.hallService = hallService;
         this.userService = userService;
-        this.webClient = webClient;
         this.graphTokenService = graphTokenService;
+        this.reservationRepository = reservationRepository;
     }
 
     @GetMapping("/hall/{hallId}")
@@ -56,8 +58,7 @@ public class ReservationController {
             return ResponseEntity.badRequest().body("Brak autoryzacji użytkownika.");
         }
 
-        User user = userService.findUserByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("Nie znaleziono użytkownika: " + userEmail));
+        User user = userService.createUserIfNotExists(principal);
         Hall hall = hallService.findHallById(hallId)
                 .orElseThrow(() -> new IllegalArgumentException("Sala nie istnieje: " + hallId));
 
@@ -69,63 +70,40 @@ public class ReservationController {
             reservationService.createReservation(hall, user, reservation);
             reservationService.createOutlookEventForUser(accessToken, reservation, hall);
             return ResponseEntity.ok("Rezerwacja została pomyślnie zapisana.");
-        } catch (WebClientResponseException e) {
-            return ResponseEntity.status(e.getStatusCode()).body("Błąd Outlooka: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Nie udało się zapisać rezerwacji. Spróbuj ponownie.");
+            return ResponseEntity.status(500).body("Nie udało się zapisać rezerwacji. " + e.getMessage());
         }
     }
 
     @DeleteMapping("/delete/{eventId}")
-    public ResponseEntity<String> deleteReservation(
-            @PathVariable String eventId,
-            @RequestParam String hallEmail,
-            @AuthenticationPrincipal OAuth2User principal,
-            @RegisteredOAuth2AuthorizedClient("azure") OAuth2AuthorizedClient authorizedClient
-    ) {
+    public ResponseEntity<String> deleteReservation(@PathVariable String eventId,
+                                                    @RequestParam String hallEmail,
+                                                    @AuthenticationPrincipal OAuth2User principal,
+                                                    @RegisteredOAuth2AuthorizedClient("azure") OAuth2AuthorizedClient authorizedClient) {
         String userEmail = principal.getAttribute("email");
-        String userAccessToken = authorizedClient.getAccessToken().getTokenValue();
+        String token = authorizedClient.getAccessToken().getTokenValue();
 
-        System.out.println("\n=== DELETE ===");
-        System.out.println("Zalogowany: " + userEmail);
-        System.out.println("Event ID: " + eventId);
-        System.out.println("Sala (kalendarz): " + hallEmail);
+        Optional<Reservation> resOpt = reservationService.findByOutlookEventId(eventId);
+        if (resOpt.isPresent()) {
+            Reservation reservation = resOpt.get();
 
-        try {
-            JsonNode userEvent = webClient.get()
-                    .uri("/me/events/" + eventId)
-                    .headers(h -> h.setBearerAuth(userAccessToken))
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
-
-            String organizer = userEvent.get("organizer").get("emailAddress").get("address").asText();
-            System.out.println("Organizator (user): " + organizer);
-
-            if (!organizer.equalsIgnoreCase(userEmail)) {
-                System.out.println("Nie jesteś organizatorem");
-                return ResponseEntity.status(403).body("Nie jesteś organizatorem wydarzenia.");
+            if (!reservation.getOrganizerEmail().equalsIgnoreCase(userEmail)) {
+                return ResponseEntity.status(403).body("Nie jesteś właścicielem rezerwacji.");
             }
 
-            webClient.delete()
-                    .uri("/me/events/" + eventId)
-                    .headers(h -> h.setBearerAuth(userAccessToken))
-                    .retrieve()
-                    .toBodilessEntity()
-                    .block();
-
-            System.out.println("✅ Usunięto z /me/events");
-            return ResponseEntity.ok("Usunięto wydarzenie");
-
-        } catch (WebClientResponseException.NotFound notFound) {
-            System.out.println("❌ Nie znaleziono w /me/events – próbuję z kalendarza sali...");
-
-            boolean deletedFromRoom = reservationService.deleteEventFromRoomCalendarIfOwner(eventId, userEmail, hallEmail);
-            if (deletedFromRoom) {
-                return ResponseEntity.ok("Usunięto wydarzenie z kalendarza sali.");
+            boolean deleted = reservationService.deleteEventFromUserCalendar(eventId, token);
+            if (deleted) {
+                reservationRepository.delete(reservation);
+                return ResponseEntity.ok("Usunięto wydarzenie.");
             }
-
-            return ResponseEntity.status(404).body("Nie znaleziono wydarzenia lub brak uprawnień do usunięcia.");
         }
+
+        boolean deleted = reservationService.deleteEventFromRoomCalendarIfOwner(eventId, userEmail, hallEmail);
+        if (deleted) {
+            reservationRepository.deleteByOutlookEventId(eventId);
+            return ResponseEntity.ok("Usunięto wydarzenie z kalendarza sali.");
+        }
+
+        return ResponseEntity.status(404).body("Nie znaleziono wydarzenia lub brak uprawnień.");
     }
 }

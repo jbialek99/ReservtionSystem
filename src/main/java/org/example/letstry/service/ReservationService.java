@@ -11,6 +11,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -20,17 +22,21 @@ public class ReservationService {
     private final HallService hallService;
     private final GraphTokenService graphTokenService;
     private final WebClient webClient;
+    private final UserService userService;
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSSSSSS]").withZone(ZoneOffset.UTC);
+
 
     public ReservationService(
             ReservationRepository reservationRepository,
             HallService hallService,
             GraphTokenService graphTokenService,
-            WebClient webClient
+            WebClient webClient, UserService userService
     ) {
         this.reservationRepository = reservationRepository;
         this.hallService = hallService;
         this.graphTokenService = graphTokenService;
         this.webClient = webClient;
+        this.userService = userService;
     }
 
     public List<Map<String, Object>> getOutlookReservationsByHall(Long hallId) {
@@ -39,8 +45,6 @@ public class ReservationService {
 
         String salaEmail = hall.getEmail();
         String accessToken = graphTokenService.getAppAccessToken();
-
-        System.out.println("[DEBUG] Pobieram wydarzenia z kalendarza sali: " + salaEmail);
 
         JsonNode eventsNode = webClient.get()
                 .uri("/users/" + salaEmail + "/calendar/events")
@@ -52,48 +56,117 @@ public class ReservationService {
         List<Map<String, Object>> results = new ArrayList<>();
         if (eventsNode != null && eventsNode.has("value")) {
             for (JsonNode event : eventsNode.get("value")) {
-                Map<String, Object> map = new HashMap<>();
-                map.put("id", event.get("id").asText());
-                map.put("title", event.get("subject").asText());
-                map.put("start", event.get("start").get("dateTime").asText());
-                map.put("end", event.get("end").get("dateTime").asText());
-                map.put("email", event.get("organizer").get("emailAddress").get("address").asText());
-                results.add(map);
+                try {
+                    String eventId = event.get("id").asText();
+                    String organizerEmail = event.get("organizer").get("emailAddress").get("address").asText();
+                    String startString = event.get("start").get("dateTime").asText();
+                    String endString = event.get("end").get("dateTime").asText();
+
+                    Instant start = Instant.from(formatter.parse(startString));
+                    Instant end = Instant.from(formatter.parse(endString));
+
+                    if (reservationRepository.findByOutlookEventId(eventId).isEmpty()) {
+                        Reservation r = new Reservation();
+                        r.setHall(hall);
+                        r.setOutlookEventId(eventId);
+                        r.setOrganizerEmail(organizerEmail);
+                        r.setStartMeeting(start);
+                        r.setEndMeeting(end);
+                        r.setDate(Instant.now());
+
+                        // 🔧 Przypisanie usera do rezerwacji
+                        Optional<User> userOpt = userService.findUserByEmail(organizerEmail);
+                        User user = userOpt.orElseGet(() -> {
+                            User newUser = new User();
+                            newUser.setEmail(organizerEmail);
+                            newUser.setFirstName("Outlook");
+                            newUser.setLastName("User");
+                            return userService.save(newUser);
+                        });
+                        r.setUser(user);
+
+                        reservationRepository.save(r);
+                    }
+
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", eventId);
+                    map.put("title", event.get("subject").asText());
+                    map.put("start", startString);
+                    map.put("end", endString);
+                    map.put("email", organizerEmail);
+                    results.add(map);
+                } catch (Exception e) {
+                    System.err.println("❗ Błąd podczas przetwarzania wydarzenia: " + e.getMessage());
+                }
             }
-            System.out.println("[DEBUG] Znaleziono wydarzeń: " + results.size());
-        } else {
-            System.out.println("[WARN] Brak wydarzeń lub odpowiedź bez pola 'value'.");
         }
 
         return results;
     }
 
+
     public void createOutlookEventForUser(String accessToken, Reservation reservation, Hall hall) {
+        // Formatowanie czasu ISO 8601 bez nanosów
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
+        String start = formatter.format(reservation.getStartMeeting());
+        String end = formatter.format(reservation.getEndMeeting());
+
         Map<String, Object> event = Map.of(
-                "subject", "Rezerwacja sali: " + hall.getName(),
-                "location", Map.of("displayName", hall.getName()),
-                "start", Map.of("dateTime", reservation.getStartMeeting().toString(), "timeZone", "UTC"),
-                "end", Map.of("dateTime", reservation.getEndMeeting().toString(), "timeZone", "UTC"),
+                "subject", "Rezerwacja sali: " + hall.getName() + " [Osobiście]",
+                "body", Map.of(
+                        "contentType", "html",
+                        "content", "Rezerwacja sali przez aplikację"
+                ),
+                "start", Map.of(
+                        "dateTime", start,
+                        "timeZone", "UTC"
+                ),
+                "end", Map.of(
+                        "dateTime", end,
+                        "timeZone", "UTC"
+                ),
+                "location", Map.of(
+                        "displayName", hall.getName(),
+                        "locationType", "conferenceRoom",
+                        "uniqueId", hall.getEmail(),
+                        "uniqueIdType", "directory"
+                ),
                 "attendees", List.of(
-                        Map.of("emailAddress", Map.of("address", hall.getEmail()), "type", "required")
-                )
+                        Map.of(
+                                "type", "resource",
+                                "emailAddress", Map.of(
+                                        "address", hall.getEmail(),
+                                        "name", hall.getName()
+                                )
+                        )
+                ),
+                "isOnlineMeeting", true,
+                "responseRequested", true
         );
 
-        System.out.println("[DEBUG] Tworzę wydarzenie w kalendarzu użytkownika z zaproszeniem sali: " + hall.getEmail());
 
-        webClient.post()
+
+        JsonNode response = webClient.post()
                 .uri("/me/events")
                 .headers(headers -> headers.setBearerAuth(accessToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(event)
                 .retrieve()
-                .bodyToMono(String.class)
+                .bodyToMono(JsonNode.class)
                 .block();
+
+        String eventId = response.get("id").asText();
+        String organizer = response.get("organizer").get("emailAddress").get("address").asText();
+
+        reservation.setOutlookEventId(eventId);
+        reservation.setOrganizerEmail(organizer);
+        reservationRepository.save(reservation);
     }
+
+
 
     public boolean deleteEventFromUserCalendar(String eventId, String accessToken) {
         try {
-            System.out.println("[DEBUG] Usuwam wydarzenie z kalendarza użytkownika: " + eventId);
             webClient.delete()
                     .uri("/me/events/" + eventId)
                     .headers(headers -> headers.setBearerAuth(accessToken))
@@ -102,19 +175,14 @@ public class ReservationService {
                     .block();
             return true;
         } catch (WebClientResponseException e) {
-            System.out.println("[ERROR] Nie udało się usunąć wydarzenia: " + e.getStatusCode() + " - " + e.getMessage());
             return false;
         }
     }
 
     public boolean isReservedAtThisTime(Long hallId, Reservation reservation) {
-        boolean conflict = !reservationRepository.findByHallIdAndStartMeetingBeforeAndEndMeetingAfter(
-                hallId,
-                reservation.getEndMeeting(),
-                reservation.getStartMeeting()
+        return !reservationRepository.findByHallIdAndStartMeetingBeforeAndEndMeetingAfter(
+                hallId, reservation.getEndMeeting(), reservation.getStartMeeting()
         ).isEmpty();
-        System.out.println("[DEBUG] Sprawdzenie konfliktu rezerwacji: " + conflict);
-        return conflict;
     }
 
     public void createReservation(Hall hall, User user, Reservation reservation) {
@@ -122,51 +190,12 @@ public class ReservationService {
         reservation.setUser(user);
         reservation.setDate(Instant.now());
         reservationRepository.save(reservation);
-        System.out.println("[DEBUG] Zapisano rezerwację w bazie danych.");
     }
 
-    public Optional<Reservation> findReservationById(Long id) {
-        return reservationRepository.findById(id);
+    public Optional<Reservation> findByOutlookEventId(String eventId) {
+        return reservationRepository.findByOutlookEventId(eventId);
     }
 
-    public void updateReservation(Reservation updated, Reservation existing) {
-        existing.setDate(updated.getDate());
-        existing.setStartMeeting(updated.getStartMeeting());
-        existing.setEndMeeting(updated.getEndMeeting());
-        reservationRepository.save(existing);
-    }
-
-    public List<Map<String, Object>> getUserEventsWithRoom(String userAccessToken, String roomEmail) {
-        System.out.println("[DEBUG] Szukam wydarzeń użytkownika zawierających salę: " + roomEmail);
-
-        JsonNode eventsNode = webClient.get()
-                .uri("/me/events")
-                .headers(headers -> headers.setBearerAuth(userAccessToken))
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .block();
-
-        List<Map<String, Object>> results = new ArrayList<>();
-        if (eventsNode != null && eventsNode.has("value")) {
-            for (JsonNode event : eventsNode.get("value")) {
-                for (JsonNode attendee : event.withArray("attendees")) {
-                    String address = attendee.get("emailAddress").get("address").asText();
-                    if (address.equalsIgnoreCase(roomEmail)) {
-                        Map<String, Object> map = new HashMap<>();
-                        map.put("id", event.get("id").asText());
-                        map.put("title", event.get("subject").asText());
-                        map.put("start", event.get("start").get("dateTime").asText());
-                        map.put("end", event.get("end").get("dateTime").asText());
-                        map.put("userEmail", event.get("organizer").get("emailAddress").get("address").asText());
-                        results.add(map);
-                        break;
-                    }
-                }
-            }
-            System.out.println("[DEBUG] Znaleziono wydarzeń użytkownika z salą: " + results.size());
-        }
-        return results;
-    }
     public boolean deleteEventFromRoomCalendarIfOwner(String eventId, String userEmail, String hallEmail) {
         try {
             String token = graphTokenService.getAppAccessToken();
@@ -179,10 +208,7 @@ public class ReservationService {
                     .block();
 
             String organizer = event.get("organizer").get("emailAddress").get("address").asText();
-            System.out.println("[DEBUG] Organizer from hall calendar: " + organizer);
-
             if (!organizer.equalsIgnoreCase(userEmail)) {
-                System.out.println("[INFO] Event found in hall calendar, but organizer is not the current user.");
                 return false;
             }
 
@@ -193,14 +219,10 @@ public class ReservationService {
                     .toBodilessEntity()
                     .block();
 
-            System.out.println("[DEBUG] Successfully deleted from hall calendar.");
             return true;
-
         } catch (WebClientResponseException.NotFound nf) {
-            System.out.println("[WARN] Not found in hall calendar.");
             return false;
         } catch (Exception e) {
-            System.out.println("[ERROR] Error during hall calendar delete: " + e.getMessage());
             return false;
         }
     }

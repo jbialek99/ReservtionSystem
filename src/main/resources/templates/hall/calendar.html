@@ -109,8 +109,6 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        console.log("✅ Skrypt JS został załadowany.");
-
         const calendarEl = document.getElementById('calendar');
         const hallId = calendarEl.dataset.hallId;
         const hallEmail = calendarEl.dataset.hallEmail;
@@ -124,49 +122,22 @@
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            editable: true,
+            editable: false,
             selectable: true,
-
-            events: (info, successCallback, failureCallback) => {
-                fetch(`/api/reservations/hall/${hallId}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        console.log("📦 Otrzymane dane z backendu:", data);
-                        successCallback(data.map(event => ({
-                            id: event.id,
-                            title: event.title,
-                            start: event.start,
-                            end: event.end,
-                            email: event.userEmail || event.email || "(brak)"
-                        })))
-                    })
-                    .catch(err => {
-                        console.error('❌ Błąd pobierania wydarzeń:', err);
-                        failureCallback(err);
-                    });
-            },
+            events: `/api/reservations/hall/${hallId}`,
 
             eventClick: info => {
-                console.log("🖱️ Kliknięto wydarzenie:", info.event);
-                console.log("📧 Organizator z extendedProps:", info.event.extendedProps.email);
-                console.log("👤 Zalogowany użytkownik:", userEmail);
+                const isOwner = info.event.extendedProps.email === userEmail;
+                if (!isOwner) return alert("Możesz usunąć tylko swoje wydarzenia.");
 
-                if (info.event.extendedProps.email === userEmail) {
-                    if (confirm('Czy chcesz usunąć to wydarzenie?')) {
-                        fetch(`/api/reservations/delete/${info.event.id}?hallEmail=${hallEmail}`, {
-                            method: 'DELETE'
-                        })
-                            .then(response => {
-                                if (response.ok) {
-                                    info.event.remove();
-                                    alert('✅ Wydarzenie usunięte.');
-                                } else {
-                                    response.text().then(msg => alert('⚠️ ' + msg));
-                                }
-                            });
-                    }
-                } else {
-                    alert('Możesz usunąć tylko swoje wydarzenia.');
+                if (confirm("Czy chcesz usunąć to wydarzenie?")) {
+                    fetch(`/api/reservations/delete/${info.event.id}?hallEmail=${hallEmail}`, {
+                        method: 'DELETE'
+                    }).then(res => {
+                        if (!res.ok) throw new Error("Błąd podczas usuwania wydarzenia");
+                        info.event.remove();
+                        alert("✅ Usunięto wydarzenie.");
+                    }).catch(err => alert(err.message));
                 }
             },
 
@@ -174,20 +145,16 @@
                 const now = new Date();
                 const start = new Date(info.date);
                 const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-                if (start < now) {
-                    return alert('⛔ Nie można rezerwować w przeszłości.');
-                }
+                if (start < now) return alert("⛔ Nie można rezerwować w przeszłości.");
 
                 const startIso = start.toISOString();
                 const endIso = end.toISOString();
 
                 if (confirm(`Rezerwować salę od ${startIso} do ${endIso}?`)) {
-                    const payload = { startMeeting: startIso, endMeeting: endIso };
                     fetch(`/api/reservations/hall/${hallId}/reserve`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                        body: JSON.stringify({ startMeeting: startIso, endMeeting: endIso })
                     }).then(async res => {
                         const msg = await res.text();
                         if (!res.ok) throw new Error(msg);
