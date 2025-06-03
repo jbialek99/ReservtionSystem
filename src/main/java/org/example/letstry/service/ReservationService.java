@@ -140,7 +140,7 @@ public class ReservationService {
                                 )
                         )
                 ),
-                "isOnlineMeeting", true,
+                "isOnlineMeeting", false,
                 "responseRequested", true
         );
 
