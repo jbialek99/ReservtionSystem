@@ -26,3 +26,4 @@ W Outlooku użytkownik wybiera salę (Room Mailbox) → Exchange zapisuje ją w 
 
 Twoja aplikacja (np. endpoint /hall/{id}) może na podstawie location.emailAddress rozpoznać, która sala została wybrana i wyświetlić jej kalendarz lub dane.
 
+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

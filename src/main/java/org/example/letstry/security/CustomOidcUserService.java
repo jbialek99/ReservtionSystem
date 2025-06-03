@@ -2,37 +2,42 @@ package org.example.letstry.security;
 
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 
-/*
-Dodane: pobranie danych z openid connect i w security wyswietlenie w logach przy probie logowania
-
-
-Dodac:
-Przypisanie roli,
-Zapis danych do bazy,
-Przekształcenie claimów
-
-*/
 @Service
 public class CustomOidcUserService extends OidcUserService {
 
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest) {
-        OidcUser user = super.loadUser(userRequest);
+        OidcUser oidcUser = super.loadUser(userRequest);
 
+        // Pobierz oryginalne claimy użytkownika
+        Map<String, Object> claims = new HashMap<>(oidcUser.getClaims());
 
-        Map<String, Object> userInfoClaims = user.getClaims();
-        System.out.println("User Info Claims: " + userInfoClaims);
+        // Dodaj access token do claimów
+        claims.put("access_token", userRequest.getAccessToken().getTokenValue());
 
+        // Zwróć nowego użytkownika z dodanym tokenem
+        return new DefaultOidcUser(
+                oidcUser.getAuthorities(),
+                oidcUser.getIdToken(),
+                oidcUser.getUserInfo(),
+                "email" // lub "preferred_username", jeśli chcesz używać innego atrybutu jako principal
+        ) {
+            @Override
+            public Map<String, Object> getClaims() {
+                return claims;
+            }
 
-        userInfoClaims.forEach((key, value) -> {
-            System.out.println(key + ": " + value);
-        });
-
-        return user;
+            @Override
+            public String getName() {
+                return oidcUser.getEmail(); // lub coś innego, zależnie od preferencji
+            }
+        };
     }
 }

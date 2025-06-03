@@ -11,4 +11,5 @@ import java.util.List;
 @Repository
 public interface HallRepository extends JpaRepository<Hall, Long>{
     List<Hall> findByBuilding(Building building);
+
 }

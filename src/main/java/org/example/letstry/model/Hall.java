@@ -16,6 +16,7 @@ public class Hall {
     private String capacity;
     private boolean available;
     private String description;
+    private String email;
 
     @OneToMany(mappedBy = "hall", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Reservation> reservations;
@@ -35,6 +36,9 @@ public class Hall {
     public String getDescription() {
         return description;
     }
+    public String getEmail() {
+        return email;
+    }
 
     public void setId(long id) { this.id = id; }
     public void setName(String name) { this.name = name; }
@@ -45,5 +49,8 @@ public class Hall {
     public void setBuilding(Building building) { this.building = building; }
     public void setDescription(String description) {
         this.description = description;
+    }
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

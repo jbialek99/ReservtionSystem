@@ -1,11 +1,9 @@
 package org.example.letstry.model;
 
 import jakarta.persistence.*;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 
+import java.time.Instant;
+import java.time.ZonedDateTime;
 
 @Entity
 @Table(name = "reservations")
@@ -15,10 +13,10 @@ public class Reservation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    private ZonedDateTime date = ZonedDateTime.now();
-    private ZonedDateTime startMeeting;
-    private ZonedDateTime endMeeting;
+    private Instant date = Instant.now();
 
+    private Instant startMeeting;
+    private Instant endMeeting;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -28,18 +26,53 @@ public class Reservation {
     @JoinColumn(name = "hall_id", nullable = false)
     private Hall hall;
 
-    // Getters and Setters
-    public long getId() { return id; }
-    public ZonedDateTime getDate() { return date; }
-    public ZonedDateTime getStartMeeting() { return startMeeting; }
-    public ZonedDateTime getEndMeeting() { return endMeeting; }
-    public User getUser() { return user; }
-    public Hall getHall() { return hall; }
+    // Getters and setters
 
-    public void setId(long id) { this.id = id; }
-    public void setDate(ZonedDateTime date) { this.date = date; }
-    public void setStartMeeting(ZonedDateTime startMeeting) { this.startMeeting = startMeeting; }
-    public void setEndMeeting(ZonedDateTime endMeeting) { this.endMeeting = endMeeting; }
-    public void setUser(User user) { this.user = user; }
-    public void setHall(Hall hall) { this.hall = hall; }
+    public long getId() {
+        return id;
+    }
+
+    public Instant getDate() {
+        return date;
+    }
+
+    public Instant getStartMeeting() {
+        return startMeeting;
+    }
+
+    public Instant getEndMeeting() {
+        return endMeeting;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public Hall getHall() {
+        return hall;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public void setDate(Instant date) {
+        this.date = date;
+    }
+
+    public void setStartMeeting(Instant startMeeting) {
+        this.startMeeting = startMeeting;
+    }
+
+    public void setEndMeeting(Instant endMeeting) {
+        this.endMeeting = endMeeting;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public void setHall(Hall hall) {
+        this.hall = hall;
+    }
 }

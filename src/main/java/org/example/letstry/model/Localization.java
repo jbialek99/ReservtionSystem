@@ -18,7 +18,7 @@ public class Localization {
     private String city;
     private String address;
     private String postalCode;
-    private String description;
+    private String state;
 
     // Getters and Setters
     public long getId() { return id; }
@@ -26,12 +26,12 @@ public class Localization {
     public String getCity() { return city; }
     public String getAddress() { return address; }
     public String getPostalCode() { return postalCode; }
-    public String getDescription() { return description; }
+    public String getState() { return state; }
 
     public void setId(long id) { this.id = id; }
     public void setBuildings(List<Building> buildings) { this.buildings = buildings; }
     public void setCity(String city) { this.city = city; }
     public void setAddress(String address) { this.address = address; }
     public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
-    public void setDescription(String description) { this.description = description; }
+    public void setState(String description) { this.state = description; }
 }

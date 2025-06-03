@@ -32,4 +32,9 @@ public class HallService {
     public Optional<Hall> findHallById(Long hallId){
         return hallRepository.findById(hallId);
     }
+
+    public List<Hall> getAllHalls() {
+        return hallRepository.findAll();
+    }
+
 }

@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.example.letstry.errorHandler.CustomAuthenticationFailureHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
@@ -80,7 +81,7 @@ public class SecurityConfig {
                 if (originalRequest == null) return null;
 
                 Map<String, Object> additionalParams = new HashMap<>(originalRequest.getAdditionalParameters());
-                additionalParams.put("prompt", "login");
+                additionalParams.put("prompt", "select_account");
 
                 return OAuth2AuthorizationRequest.from(originalRequest)
                         .additionalParameters(additionalParams)
@@ -88,11 +89,12 @@ public class SecurityConfig {
             }
         };
     }
-
     @Bean
     public WebClient webClient() {
         return WebClient.builder()
                 .baseUrl("https://graph.microsoft.com/v1.0")
+                .defaultHeader(HttpHeaders.ACCEPT, "application/json")
                 .build();
     }
 }
+

@@ -1,118 +1,199 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="pl" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kalendarz sali</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 1rem;
+            text-align: center;
+            scroll-behavior: smooth;
+        }
 
-    <link rel="stylesheet" href="/css/styles.css">
+        h2 {
+            color: #1a1a1a;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        #calendar {
+            max-width: 100%;
+            margin: auto;
+            background: #ffffff;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            overflow-x: auto;
+        }
+
+        .fc-toolbar-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .fc-button {
+            background: #0078d4;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .fc-button:hover {
+            background: #005a9e;
+        }
+
+        .fc-day-today {
+            background: #e8f0fe !important;
+        }
+
+        .fc-event {
+            background-color: #2563eb;
+            border: none;
+            color: white;
+            font-size: 0.9rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            white-space: normal;
+            line-height: 1.2;
+        }
+
+        .return-tile {
+            display: inline-block;
+            margin-top: 1.5rem;
+            text-decoration: none;
+            color: white;
+            background-color: #0078d4;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            h2 {
+                font-size: 1.3rem;
+            }
+
+            .fc-button {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.85rem;
+            }
+
+            .return-tile {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.95rem;
+            }
+        }
+    </style>
 </head>
 <body>
-<h2>Kalendarz rezerwacji sali: <span th:text="${hall.name}"></span></h2>
 
-
-<div id="calendar" th:data-hall-id="${hall.id}"></div>
+<h2>Kalendarz rezerwacji sali: <span th:text="${hall.name}">Nazwa sali</span></h2>
+<div id="calendar"
+     th:data-hall-id="${hall.id}"
+     th:data-hall-email="${hall.email}"
+     th:data-user-email="${#authentication.getPrincipal().getAttribute('email')}">
+</div>
 
 <a th:href="@{/localization}" class="return-tile">Powrót do listy sal</a>
 
-<!-- FullCalendar JS -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        console.log("✅ Skrypt JS został załadowany.");
+
         const calendarEl = document.getElementById('calendar');
-        const hallId = calendarEl.dataset.hallId; // Pobieranie ID sali dynamicznie
+        const hallId = calendarEl.dataset.hallId;
+        const hallEmail = calendarEl.dataset.hallEmail;
+        const userEmail = calendarEl.dataset.userEmail;
 
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
+            timeZone: 'UTC',
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
             editable: true,
-            events: function(info, successCallback, failureCallback) {
-                fetch('/api/calendar/events') // Pobierz wydarzenia z API
-                    .then(response => response.json())
-                    .then(data => successCallback(data))
-                    .catch(error => failureCallback(error));
-            },
-            eventDrop: function(info) {
-                const updatedEvent = {
-                    id: info.event.id,
-                    startMeeting: info.event.start.toISOString(),
-                    endMeeting: info.event.end.toISOString(),
-                };
+            selectable: true,
 
-                fetch('/api/reservations/update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updatedEvent)
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Nie udało się zapisać zmian');
-                        }
-                        alert('Rezerwacja została zaktualizowana!');
+            events: (info, successCallback, failureCallback) => {
+                fetch(`/api/reservations/hall/${hallId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log("📦 Otrzymane dane z backendu:", data);
+                        successCallback(data.map(event => ({
+                            id: event.id,
+                            title: event.title,
+                            start: event.start,
+                            end: event.end,
+                            email: event.userEmail || event.email || "(brak)"
+                        })))
                     })
-                    .catch(error => {
-                        alert('Błąd: ' + error.message);
+                    .catch(err => {
+                        console.error('❌ Błąd pobierania wydarzeń:', err);
+                        failureCallback(err);
                     });
             },
-            eventResize: function(info) {
-                const updatedEvent = {
-                    id: info.event.id,
-                    startMeeting: info.event.start.toISOString(),
-                    endMeeting: info.event.end.toISOString(),
-                };
 
-                fetch('/api/reservations/update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updatedEvent)
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Nie udało się zapisać zmian');
-                        }
-                        alert('Rezerwacja została zaktualizowana!');
-                    })
-                    .catch(error => {
-                        alert('Błąd: ' + error.message);
-                    });
-            },
-            dateClick: function(info) {
-                const start = info.dateStr;
-                const end = new Date(info.dateStr);
-                end.setHours(end.getHours() + 1);
+            eventClick: info => {
+                console.log("🖱️ Kliknięto wydarzenie:", info.event);
+                console.log("📧 Organizator z extendedProps:", info.event.extendedProps.email);
+                console.log("👤 Zalogowany użytkownik:", userEmail);
 
-                const userConfirmed = confirm(`Czy chcesz zarezerwować salę od ${start} do ${end.toISOString()}?`);
-                if (userConfirmed) {
-                    const newReservation = {
-                        startMeeting: start,
-                        endMeeting: end.toISOString(),
-                    };
-
-                    fetch(`/api/reservations/hall/${hallId}/reserve/1`, { // Używamy stałego ID użytkownika 1
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(newReservation)
-                    })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Nie udało się zapisać rezerwacji');
-                            }
-                            alert('Rezerwacja została pomyślnie utworzona!');
-                            calendar.refetchEvents(); // Przeładowujemy wydarzenia
+                if (info.event.extendedProps.email === userEmail) {
+                    if (confirm('Czy chcesz usunąć to wydarzenie?')) {
+                        fetch(`/api/reservations/delete/${info.event.id}?hallEmail=${hallEmail}`, {
+                            method: 'DELETE'
                         })
-                        .catch(error => {
-                            alert('Błąd: ' + error.message);
-                        });
+                            .then(response => {
+                                if (response.ok) {
+                                    info.event.remove();
+                                    alert('✅ Wydarzenie usunięte.');
+                                } else {
+                                    response.text().then(msg => alert('⚠️ ' + msg));
+                                }
+                            });
+                    }
+                } else {
+                    alert('Możesz usunąć tylko swoje wydarzenia.');
+                }
+            },
+
+            dateClick: info => {
+                const now = new Date();
+                const start = new Date(info.date);
+                const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+                if (start < now) {
+                    return alert('⛔ Nie można rezerwować w przeszłości.');
+                }
+
+                const startIso = start.toISOString();
+                const endIso = end.toISOString();
+
+                if (confirm(`Rezerwować salę od ${startIso} do ${endIso}?`)) {
+                    const payload = { startMeeting: startIso, endMeeting: endIso };
+                    fetch(`/api/reservations/hall/${hallId}/reserve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    }).then(async res => {
+                        const msg = await res.text();
+                        if (!res.ok) throw new Error(msg);
+                        alert('✅ ' + msg);
+                        calendar.refetchEvents();
+                    }).catch(err => alert('❌ ' + err.message));
                 }
             }
         });
@@ -120,5 +201,6 @@
         calendar.render();
     });
 </script>
+
 </body>
 </html>
