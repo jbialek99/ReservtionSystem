@@ -106,7 +106,6 @@ public class ReservationService {
 
 
     public void createOutlookEventForUser(String accessToken, Reservation reservation, Hall hall) {
-        // Formatowanie czasu ISO 8601 bez nanosów
         DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
         String start = formatter.format(reservation.getStartMeeting());
         String end = formatter.format(reservation.getEndMeeting());
@@ -114,7 +113,7 @@ public class ReservationService {
         Map<String, Object> event = Map.of(
                 "subject", "Rezerwacja sali: " + hall.getName() + " [Osobiście]",
                 "body", Map.of(
-                        "contentType", "html",
+                        "contentType", "HTML",
                         "content", "Rezerwacja sali przez aplikację"
                 ),
                 "start", Map.of(
@@ -126,10 +125,7 @@ public class ReservationService {
                         "timeZone", "UTC"
                 ),
                 "location", Map.of(
-                        "displayName", hall.getName(),
-                        "locationType", "conferenceRoom",
-                        "uniqueId", hall.getEmail(),
-                        "uniqueIdType", "directory"
+                        "displayName", hall.getName()
                 ),
                 "attendees", List.of(
                         Map.of(
@@ -141,10 +137,8 @@ public class ReservationService {
                         )
                 ),
                 "isOnlineMeeting", false,
-                "responseRequested", true
+                "responseRequested", true  // ✅ sala powinna odpowiedzieć na zaproszenie
         );
-
-
 
         JsonNode response = webClient.post()
                 .uri("/me/events")
