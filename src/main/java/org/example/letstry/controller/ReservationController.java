@@ -67,8 +67,12 @@ public class ReservationController {
         }
 
         try {
+            // Tworzymy lokalną rezerwację jako pierwszą, ale nie nadajemy jeszcze eventId
             reservationService.createReservation(hall, user, reservation);
+
+            // Próba utworzenia wydarzenia w Outlooku – tylko jeśli się uda, będzie miała eventId
             reservationService.createOutlookEventForUser(accessToken, reservation, hall);
+
             return ResponseEntity.ok("Rezerwacja została pomyślnie zapisana.");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Nie udało się zapisać rezerwacji. " + e.getMessage());

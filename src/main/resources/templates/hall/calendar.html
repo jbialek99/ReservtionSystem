@@ -134,7 +134,7 @@
                     fetch(`/api/reservations/delete/${info.event.id}?hallEmail=${hallEmail}`, {
                         method: 'DELETE'
                     }).then(res => {
-                        if (!res.ok) throw new Error("Błąd podczas usuwania wydarzenia");
+                        if (!res.ok) throw new Error("Usunieto wydarzenie");
                         info.event.remove();
                         alert("✅ Usunięto wydarzenie.");
                     }).catch(err => alert(err.message));

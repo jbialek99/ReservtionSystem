@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ReservationService {
@@ -46,6 +47,16 @@ public class ReservationService {
         String salaEmail = hall.getEmail();
         String accessToken = graphTokenService.getAppAccessToken();
 
+        // 1. Pobierz z bazy tylko te, które NIE mają eventId (czyli nie zaakceptowane przez salę)
+        List<Reservation> localReservations = reservationRepository.findByHallId(hallId)
+                .stream()
+                .filter(r -> r.getOutlookEventId() == null)
+                .toList();
+
+        Set<String> addedIds = new HashSet<>();
+        List<Map<String, Object>> merged = new ArrayList<>();
+
+        // 2. Dodaj z Outlooka
         JsonNode eventsNode = webClient.get()
                 .uri("/users/" + salaEmail + "/calendar/events")
                 .headers(headers -> headers.setBearerAuth(accessToken))
@@ -53,57 +64,43 @@ public class ReservationService {
                 .bodyToMono(JsonNode.class)
                 .block();
 
-        List<Map<String, Object>> results = new ArrayList<>();
         if (eventsNode != null && eventsNode.has("value")) {
             for (JsonNode event : eventsNode.get("value")) {
                 try {
                     String eventId = event.get("id").asText();
                     String organizerEmail = event.get("organizer").get("emailAddress").get("address").asText();
-                    String startString = event.get("start").get("dateTime").asText();
-                    String endString = event.get("end").get("dateTime").asText();
-
-                    Instant start = Instant.from(formatter.parse(startString));
-                    Instant end = Instant.from(formatter.parse(endString));
-
-                    if (reservationRepository.findByOutlookEventId(eventId).isEmpty()) {
-                        Reservation r = new Reservation();
-                        r.setHall(hall);
-                        r.setOutlookEventId(eventId);
-                        r.setOrganizerEmail(organizerEmail);
-                        r.setStartMeeting(start);
-                        r.setEndMeeting(end);
-                        r.setDate(Instant.now());
-
-                        // 🔧 Przypisanie usera do rezerwacji
-                        Optional<User> userOpt = userService.findUserByEmail(organizerEmail);
-                        User user = userOpt.orElseGet(() -> {
-                            User newUser = new User();
-                            newUser.setEmail(organizerEmail);
-                            newUser.setFirstName("Outlook");
-                            newUser.setLastName("User");
-                            return userService.save(newUser);
-                        });
-                        r.setUser(user);
-
-                        reservationRepository.save(r);
-                    }
+                    String start = event.get("start").get("dateTime").asText();
+                    String end = event.get("end").get("dateTime").asText();
+                    String title = event.get("subject").asText();
 
                     Map<String, Object> map = new HashMap<>();
                     map.put("id", eventId);
-                    map.put("title", event.get("subject").asText());
-                    map.put("start", startString);
-                    map.put("end", endString);
+                    map.put("title", title);
+                    map.put("start", start);
+                    map.put("end", end);
                     map.put("email", organizerEmail);
-                    results.add(map);
+                    merged.add(map);
+
+                    addedIds.add(eventId);
                 } catch (Exception e) {
                     System.err.println("❗ Błąd podczas przetwarzania wydarzenia: " + e.getMessage());
                 }
             }
         }
 
-        return results;
-    }
+        // 3. Dodaj lokalne tylko jeśli ich eventId == null (czyli nie zaakceptowane)
+        for (Reservation r : localReservations) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", UUID.randomUUID().toString());  // fake ID żeby nie kolidowało z Outlookiem
+            map.put("title", "Rezerwacja oczekująca");
+            map.put("start", r.getStartMeeting().toString());
+            map.put("end", r.getEndMeeting().toString());
+            map.put("email", r.getOrganizerEmail());
+            merged.add(map);
+        }
 
+        return merged;
+    }
 
     public void createOutlookEventForUser(String accessToken, Reservation reservation, Hall hall) {
         DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
@@ -137,25 +134,37 @@ public class ReservationService {
                         )
                 ),
                 "isOnlineMeeting", false,
-                "responseRequested", true  // ✅ sala powinna odpowiedzieć na zaproszenie
+                "responseRequested", true
         );
 
-        JsonNode response = webClient.post()
-                .uri("/me/events")
-                .headers(headers -> headers.setBearerAuth(accessToken))
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(event)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .block();
+        try {
+            JsonNode response = webClient.post()
+                    .uri("/me/events")
+                    .headers(headers -> headers.setBearerAuth(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(event)
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
 
-        String eventId = response.get("id").asText();
-        String organizer = response.get("organizer").get("emailAddress").get("address").asText();
+            // tylko jeśli sala zaakceptuje, ustawiamy ID wydarzenia
+            if (response != null && response.has("id")) {
+                String eventId = response.get("id").asText();
+                String organizer = response.get("organizer").get("emailAddress").get("address").asText();
 
-        reservation.setOutlookEventId(eventId);
-        reservation.setOrganizerEmail(organizer);
-        reservationRepository.save(reservation);
+                reservation.setOutlookEventId(eventId);
+                reservation.setOrganizerEmail(organizer);
+
+                reservationRepository.save(reservation);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Nie udało się zapisać wydarzenia w Outlook: " + e.getMessage());
+            // ale zostawiamy lokalnie
+            reservation.setOutlookEventId(null);
+            reservationRepository.save(reservation);
+        }
     }
+
 
 
 
