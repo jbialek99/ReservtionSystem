@@ -1,0 +1,160 @@
+{
+	"id": "f11b0bfb-c920-41d4-8730-327c8d04af22",
+	"deletedDateTime": null,
+	"appId": "09206304-23b7-4724-b128-a84631fd8429",
+	"applicationTemplateId": null,
+	"disabledByMicrosoftStatus": null,
+	"createdDateTime": "2025-04-14T20:22:46Z",
+	"displayName": "Reservations",
+	"description": null,
+	"groupMembershipClaims": "None",
+	"identifierUris": [
+		"api://09206304-23b7-4724-b128-a84631fd8429"
+	],
+	"isDeviceOnlyAuthSupported": null,
+	"isFallbackPublicClient": false,
+	"nativeAuthenticationApisEnabled": null,
+	"notes": null,
+	"publisherDomain": "bucikbialekgmail.onmicrosoft.com",
+	"serviceManagementReference": null,
+	"signInAudience": "AzureADMyOrg",
+	"tags": [
+		"apiConsumer",
+		"webApp"
+	],
+	"tokenEncryptionKeyId": null,
+	"samlMetadataUrl": null,
+	"defaultRedirectUri": "https://61bd-5-173-29-93.ngrok-free.app/login/oauth2/code/azure",
+	"certification": null,
+	"requestSignatureVerification": null,
+	"addIns": [],
+	"api": {
+		"acceptMappedClaims": null,
+		"knownClientApplications": [],
+		"requestedAccessTokenVersion": null,
+		"oauth2PermissionScopes": [],
+		"preAuthorizedApplications": []
+	},
+	"appRoles": [
+		{
+			"allowedMemberTypes": [
+				"User"
+			],
+			"description": "Can reserve rooms and view schedule",
+			"displayName": "User",
+			"id": "1b7af682-f6ba-4c97-ae37-7ecd26e1a8cf",
+			"isEnabled": true,
+			"origin": "Application",
+			"value": "ROLE_USER"
+		},
+		{
+			"allowedMemberTypes": [
+				"User"
+			],
+			"description": "Can manage reservations and access admin panel",
+			"displayName": "Administrator",
+			"id": "23f594bd-8958-40de-9e0d-941d4e7abddb",
+			"isEnabled": true,
+			"origin": "Application",
+			"value": "ROLE_ADMIN"
+		}
+	],
+	"info": {
+		"logoUrl": null,
+		"marketingUrl": null,
+		"privacyStatementUrl": null,
+		"supportUrl": null,
+		"termsOfServiceUrl": null
+	},
+	"keyCredentials": [],
+	"optionalClaims": {
+		"accessToken": [
+			{
+				"additionalProperties": [],
+				"essential": false,
+				"name": "idtyp",
+				"source": null
+			},
+			{
+				"additionalProperties": [
+					"use_guid"
+				],
+				"essential": false,
+				"name": "aud",
+				"source": null
+			}
+		],
+		"idToken": [],
+		"saml2Token": []
+	},
+	"parentalControlSettings": {
+		"countriesBlockedForMinors": [],
+		"legalAgeGroupRule": "Allow"
+	},
+	"passwordCredentials": [
+		{
+			"customKeyIdentifier": null,
+			"displayName": "spring-client-secret (180dni)",
+			"endDateTime": "2025-10-22T13:43:11.121Z",
+			"hint": "9m9",
+			"keyId": "bca29ce5-3d21-4bfe-9908-e672c39cabfd",
+			"secretText": null,
+			"startDateTime": "2025-04-25T13:43:11.121Z"
+		}
+	],
+	"publicClient": {
+		"redirectUris": []
+	},
+	"requiredResourceAccess": [
+		{
+			"resourceAppId": "00000003-0000-0000-c000-000000000000",
+			"resourceAccess": [
+				{
+					"id": "ef54d2bf-783f-4e0f-bca1-3210c0444d99",
+					"type": "Role"
+				},
+				{
+					"id": "40f97065-369a-49f4-947c-6a255697ae91",
+					"type": "Role"
+				},
+				{
+					"id": "df021288-bdef-4463-88db-98f22de89214",
+					"type": "Role"
+				}
+			]
+		}
+	],
+	"verifiedPublisher": {
+		"displayName": null,
+		"verifiedPublisherId": null,
+		"addedDateTime": null
+	},
+	"web": {
+		"homePageUrl": "https://61bd-5-173-29-93.ngrok-free.app/home",
+		"logoutUrl": "https://61bd-5-173-29-93.ngrok-free.app/logout",
+		"redirectUris": [
+			"https://61bd-5-173-29-93.ngrok-free.app/login/oauth2/code/azure"
+		],
+		"implicitGrantSettings": {
+			"enableAccessTokenIssuance": false,
+			"enableIdTokenIssuance": false
+		},
+		"redirectUriSettings": [
+			{
+				"uri": "https://61bd-5-173-29-93.ngrok-free.app/login/oauth2/code/azure",
+				"index": null
+			}
+		]
+	},
+	"servicePrincipalLockConfiguration": {
+		"isEnabled": true,
+		"allProperties": true,
+		"credentialsWithUsageVerify": true,
+		"credentialsWithUsageSign": true,
+		"identifierUris": false,
+		"tokenEncryptionKeyId": true
+	},
+	"spa": {
+		"redirectUris": []
+	}
+}

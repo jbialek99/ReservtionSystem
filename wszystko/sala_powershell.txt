@@ -1,0 +1,19 @@
+//do ustawienia dostepnosci i ustawien sali
+Set-CalendarProcessing sala5@bucikbialekgmail.onmicrosoft.com `
+  -AutomateProcessing AutoAccept `
+  -AllowConflicts $false `
+  -BookingWindowInDays 180 `
+  -MaximumDurationInMinutes 240 `
+  -DeleteSubject $false `
+  -AddOrganizerToSubject $true `
+  -RemovePrivateProperty $false `
+  -ProcessExternalMeetingMessages $true `
+  -AllBookInPolicy $true `
+  -AllRequestInPolicy $false `
+  -AllRequestOutOfPolicy $false
+
+
+
+
+//odzielnie do sprawdzania 
+Get-CalendarProcessing sala3@bucikbialekgmail.onmicrosoft.com | fl AutomateProcessing,ProcessExternalMeetingMessages,AllBookInPolicy

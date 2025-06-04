@@ -1,0 +1,4 @@
+Linki: 
+
+https://admin.microsoft.com/#/homepage - zarzadzanie licencja poczty
+https://admin.exchange.microsoft.com/#/homepage - do tworzenia mailboxow i dodawania ich do grupy, aby byly widoczne
