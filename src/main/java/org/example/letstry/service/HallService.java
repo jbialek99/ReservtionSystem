@@ -37,4 +37,9 @@ public class HallService {
         return hallRepository.findAll();
     }
 
+    public Optional<Hall> findByEmail(String email) {
+        return hallRepository.findByEmail(email);
+    }
+
+
 }

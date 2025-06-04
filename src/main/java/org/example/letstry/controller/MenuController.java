@@ -1,6 +1,7 @@
 package org.example.letstry.controller;
 
 import org.example.letstry.model.Reservation;
+import org.example.letstry.service.HallService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -11,6 +12,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class MenuController {
+
+    private final HallService hallService;
+
+    public MenuController(HallService hallService) {
+        this.hallService = hallService;
+    }
 
     @GetMapping("/welcome")
     public String welcome() {
@@ -24,12 +31,23 @@ public class MenuController {
             model.addAttribute("email", user.getAttribute("email"));
             model.addAttribute("name", user.getAttribute("name"));
         }
+
+        hallService.findByEmail("sala1@bucikbialekgmail.onmicrosoft.com").ifPresent(hall ->
+                model.addAttribute("defaultHallId", hall.getId()));
+
         return "/menu/home";
     }
+
     @GetMapping("/test")
     public String test() {
         Reservation reservation = new Reservation();
         System.out.println(reservation.getDate());
         return "/test";
+    }
+    @GetMapping("/calendar")
+    public String redirectToDefaultHallCalendar() {
+        return hallService.findByEmail("sala1@bucikbialekgmail.onmicrosoft.com")
+                .map(hall -> "redirect:/calendar/" + hall.getId())
+                .orElse("redirect:/error");
     }
 }

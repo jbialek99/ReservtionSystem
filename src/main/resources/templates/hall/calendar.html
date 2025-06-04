@@ -134,7 +134,7 @@
                     fetch(`/api/reservations/delete/${info.event.id}?hallEmail=${hallEmail}`, {
                         method: 'DELETE'
                     }).then(res => {
-                        if (!res.ok) throw new Error("Usunieto wydarzenie");
+                        if (!res.ok) throw new Error("Usunięto wydarzenie");
                         info.event.remove();
                         alert("✅ Usunięto wydarzenie.");
                     }).catch(err => alert(err.message));
@@ -147,20 +147,33 @@
                 const end = new Date(start.getTime() + 60 * 60 * 1000);
                 if (start < now) return alert("⛔ Nie można rezerwować w przeszłości.");
 
+                const title = prompt("Podaj tytuł rezerwacji:");
+                if (!title) return;
+
                 const startIso = start.toISOString();
                 const endIso = end.toISOString();
 
-                if (confirm(`Rezerwować salę od ${startIso} do ${endIso}?`)) {
-                    fetch(`/api/reservations/hall/${hallId}/reserve`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ startMeeting: startIso, endMeeting: endIso })
-                    }).then(async res => {
-                        const msg = await res.text();
-                        if (!res.ok) throw new Error(msg);
-                        alert('✅ ' + msg);
-                        calendar.refetchEvents();
-                    }).catch(err => alert('❌ ' + err.message));
+                fetch(`/api/reservations/hall/${hallId}/reserve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        startMeeting: startIso,
+                        endMeeting: endIso,
+                        title: title
+                    })
+                }).then(async res => {
+                    const msg = await res.text();
+                    if (!res.ok) throw new Error(msg);
+                    alert('✅ ' + msg);
+                    calendar.refetchEvents();
+                }).catch(err => alert('❌ ' + err.message));
+            },
+
+            // 🔧 Tooltip z informacją o użytkowniku
+            eventDidMount: function(info) {
+                const tooltip = info.event.extendedProps.tooltip;
+                if (tooltip) {
+                    info.el.setAttribute('title', tooltip);
                 }
             }
         });
@@ -168,6 +181,8 @@
         calendar.render();
     });
 </script>
+
+
 
 </body>
 </html>

@@ -3,6 +3,7 @@ package org.example.letstry.controller;
 import org.example.letstry.model.Hall;
 import org.example.letstry.model.Reservation;
 import org.example.letstry.model.User;
+import org.example.letstry.repository.HallRepository;
 import org.example.letstry.repository.ReservationRepository;
 import org.example.letstry.service.GraphTokenService;
 import org.example.letstry.service.HallService;
@@ -28,17 +29,20 @@ public class ReservationController {
     private final UserService userService;
     private final GraphTokenService graphTokenService;
     private final ReservationRepository reservationRepository;
+    private final HallRepository hallRepository;
 
-    public ReservationController(ReservationService reservationService,
-                                 HallService hallService,
-                                 UserService userService,
-                                 GraphTokenService graphTokenService,
-                                 ReservationRepository reservationRepository) {
+    public ReservationController(
+            ReservationService reservationService, HallService hallService,
+            UserService userService,
+            GraphTokenService graphTokenService,
+            ReservationRepository reservationRepository, HallRepository hallRepository) {
         this.reservationService = reservationService;
+
         this.hallService = hallService;
         this.userService = userService;
         this.graphTokenService = graphTokenService;
         this.reservationRepository = reservationRepository;
+        this.hallRepository = hallRepository;
     }
 
     @GetMapping("/hall/{hallId}")

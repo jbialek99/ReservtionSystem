@@ -40,7 +40,8 @@ public class HallController {
 
     @GetMapping("/here")
     public String chooseHallHere(Model model) {
-        List<Hall> halls = hallService.getHalls();
+        Long buildingId = 101L;
+        List<Hall> halls = hallService.getBuildingHalls(buildingId);
         model.addAttribute("halls", halls);
         return "/hall/here";
     }

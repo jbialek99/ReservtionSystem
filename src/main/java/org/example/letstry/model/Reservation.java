@@ -14,7 +14,7 @@ public class Reservation {
     private long id;
 
     private Instant date = Instant.now();
-
+    private String title;
     private Instant startMeeting;
     private Instant endMeeting;
     private String outlookEventId;
@@ -55,6 +55,10 @@ public class Reservation {
         return organizerEmail;
     }
 
+    public String getTitle() {
+        return title;
+    }
+
     public void setId(long id) {
         this.id = id;
     }
@@ -78,5 +82,8 @@ public class Reservation {
     }
     public void setOrganizerEmail(String organizerEmail) {
         this.organizerEmail = organizerEmail;
+    }
+    public void setTitle(String title) {
+        this.title = title;
     }
 }

@@ -39,7 +39,6 @@ public class ReservationService {
         this.webClient = webClient;
         this.userService = userService;
     }
-
     public List<Map<String, Object>> getOutlookReservationsByHall(Long hallId) {
         Hall hall = hallService.findHallById(hallId)
                 .orElseThrow(() -> new IllegalArgumentException("Sala o ID " + hallId + " nie istnieje!"));
@@ -47,16 +46,11 @@ public class ReservationService {
         String salaEmail = hall.getEmail();
         String accessToken = graphTokenService.getAppAccessToken();
 
-        // 1. Pobierz z bazy tylko te, które NIE mają eventId (czyli nie zaakceptowane przez salę)
-        List<Reservation> localReservations = reservationRepository.findByHallId(hallId)
-                .stream()
-                .filter(r -> r.getOutlookEventId() == null)
-                .toList();
-
-        Set<String> addedIds = new HashSet<>();
         List<Map<String, Object>> merged = new ArrayList<>();
+        Set<String> addedEventIds = new HashSet<>();
+        Set<String> addedTimeRanges = new HashSet<>();
 
-        // 2. Dodaj z Outlooka
+        // 1. Pobierz z Outlooka
         JsonNode eventsNode = webClient.get()
                 .uri("/users/" + salaEmail + "/calendar/events")
                 .headers(headers -> headers.setBearerAuth(accessToken))
@@ -81,20 +75,41 @@ public class ReservationService {
                     map.put("email", organizerEmail);
                     merged.add(map);
 
-                    addedIds.add(eventId);
+                    addedEventIds.add(eventId);
+                    addedTimeRanges.add(start + "|" + end);
                 } catch (Exception e) {
                     System.err.println("❗ Błąd podczas przetwarzania wydarzenia: " + e.getMessage());
                 }
             }
         }
 
-        // 3. Dodaj lokalne tylko jeśli ich eventId == null (czyli nie zaakceptowane)
-        for (Reservation r : localReservations) {
+        // 2. Pobierz lokalne z bazy danych (jeśli nie ma ich w Outlooku)
+        List<Reservation> allLocal = reservationRepository.findByHallId(hallId);
+
+        for (Reservation r : allLocal) {
+            String start = r.getStartMeeting().toString();
+            String end = r.getEndMeeting().toString();
+            String eventId = r.getOutlookEventId();
+            String rangeKey = start + "|" + end;
+
+            boolean alreadyInOutlook = eventId != null && addedEventIds.contains(eventId);
+            boolean sameTimeInOutlook = addedTimeRanges.contains(rangeKey);
+            if (alreadyInOutlook || sameTimeInOutlook) continue;
+
+            String userName = Optional.ofNullable(r.getUser())
+                    .map(user -> user.getFirstName() + " " + user.getLastName())
+                    .orElse("Nieznany użytkownik");
+
+            String rawTitle = Optional.ofNullable(r.getTitle()).orElse("");
+            String finalTitle = (!rawTitle.startsWith(userName) && !rawTitle.isBlank())
+                    ? userName + ": " + rawTitle
+                    : (rawTitle.isBlank() ? userName : rawTitle);
+
             Map<String, Object> map = new HashMap<>();
-            map.put("id", UUID.randomUUID().toString());  // fake ID żeby nie kolidowało z Outlookiem
-            map.put("title", "Rezerwacja oczekująca");
-            map.put("start", r.getStartMeeting().toString());
-            map.put("end", r.getEndMeeting().toString());
+            map.put("id", eventId != null ? eventId : UUID.randomUUID().toString());
+            map.put("title", finalTitle);
+            map.put("start", start);
+            map.put("end", end);
             map.put("email", r.getOrganizerEmail());
             merged.add(map);
         }
@@ -102,13 +117,17 @@ public class ReservationService {
         return merged;
     }
 
+
     public void createOutlookEventForUser(String accessToken, Reservation reservation, Hall hall) {
         DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
         String start = formatter.format(reservation.getStartMeeting());
         String end = formatter.format(reservation.getEndMeeting());
 
+        String organizerName = reservation.getUser().getFirstName() + " " + reservation.getUser().getLastName();
+        String title = organizerName + ": " + reservation.getTitle();
+
         Map<String, Object> event = Map.of(
-                "subject", "Rezerwacja sali: " + hall.getName() + " [Osobiście]",
+                "subject", title,
                 "body", Map.of(
                         "contentType", "HTML",
                         "content", "Rezerwacja sali przez aplikację"
@@ -147,24 +166,41 @@ public class ReservationService {
                     .bodyToMono(JsonNode.class)
                     .block();
 
-            // tylko jeśli sala zaakceptuje, ustawiamy ID wydarzenia
             if (response != null && response.has("id")) {
                 String eventId = response.get("id").asText();
                 String organizer = response.get("organizer").get("emailAddress").get("address").asText();
 
-                reservation.setOutlookEventId(eventId);
+                // ✅ Sprawdź, czy sala zaakceptowała zaproszenie
+                boolean accepted = false;
+                for (JsonNode attendee : response.withArray("attendees")) {
+                    JsonNode email = attendee.path("emailAddress").path("address");
+                    if (email.asText().equalsIgnoreCase(hall.getEmail())) {
+                        String status = attendee.path("status").path("response").asText();
+                        if ("accepted".equalsIgnoreCase(status)) {
+                            accepted = true;
+                            break;
+                        }
+                    }
+                }
+
+                reservation.setTitle(title);
                 reservation.setOrganizerEmail(organizer);
+
+                if (accepted) {
+                    reservation.setOutlookEventId(eventId);
+                } else {
+                    reservation.setOutlookEventId(null); // Sala nie zaakceptowała
+                }
 
                 reservationRepository.save(reservation);
             }
         } catch (Exception e) {
             System.err.println("⚠️ Nie udało się zapisać wydarzenia w Outlook: " + e.getMessage());
-            // ale zostawiamy lokalnie
             reservation.setOutlookEventId(null);
+            reservation.setTitle(title);
             reservationRepository.save(reservation);
         }
     }
-
 
 
 
