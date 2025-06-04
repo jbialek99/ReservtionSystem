@@ -1,6 +1,6 @@
 
 PS C:\Users\Kuba\Desktop\letsgo> docker exec -it f36906e5ad6ce22f8086018e395ab2803568600a12d5e147f444f9f639fa7dbd bash                             bash-5.1#
-bash-5.1# mysqldump -u root -p actual > /tmp/actual.sql
+bash-5.1# mysqldump -u root -p conference > /tmp/conferenceMain1.sql
 Enter password:
 bash-5.1# mysqldump -u root -p actual > /tmp/actual.sql
 Enter password:
