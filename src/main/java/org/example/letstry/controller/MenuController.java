@@ -1,6 +1,4 @@
 package org.example.letstry.controller;
-
-import org.example.letstry.model.Reservation;
 import org.example.letstry.service.HallService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,12 +36,7 @@ public class MenuController {
         return "/menu/home";
     }
 
-    @GetMapping("/test")
-    public String test() {
-        Reservation reservation = new Reservation();
-        System.out.println(reservation.getDate());
-        return "/test";
-    }
+
     @GetMapping("/calendar")
     public String redirectToDefaultHallCalendar() {
         return hallService.findByEmail("sala1@bucikbialekgmail.onmicrosoft.com")

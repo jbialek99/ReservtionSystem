@@ -37,7 +37,6 @@ public class ReservationController {
             GraphTokenService graphTokenService,
             ReservationRepository reservationRepository, HallRepository hallRepository) {
         this.reservationService = reservationService;
-
         this.hallService = hallService;
         this.userService = userService;
         this.graphTokenService = graphTokenService;
@@ -71,12 +70,11 @@ public class ReservationController {
         }
 
         try {
-            // Tworzymy lokalną rezerwację jako pierwszą, ale nie nadajemy jeszcze eventId
             reservationService.createReservation(hall, user, reservation);
-
-            // Próba utworzenia wydarzenia w Outlooku – tylko jeśli się uda, będzie miała eventId
-            reservationService.createOutlookEventForUser(accessToken, reservation, hall);
-
+            boolean success = reservationService.createOutlookEventForUser(accessToken, reservation, hall);
+            if (!success) {
+                return ResponseEntity.status(202).body("Rezerwacja zapisana lokalnie, ale sala nie zaakceptowała zaproszenia.");
+            }
             return ResponseEntity.ok("Rezerwacja została pomyślnie zapisana.");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Nie udało się zapisać rezerwacji. " + e.getMessage());
@@ -94,21 +92,19 @@ public class ReservationController {
         Optional<Reservation> resOpt = reservationService.findByOutlookEventId(eventId);
         if (resOpt.isPresent()) {
             Reservation reservation = resOpt.get();
-
             if (!reservation.getOrganizerEmail().equalsIgnoreCase(userEmail)) {
                 return ResponseEntity.status(403).body("Nie jesteś właścicielem rezerwacji.");
             }
-
             boolean deleted = reservationService.deleteEventFromUserCalendar(eventId, token);
             if (deleted) {
-                reservationRepository.delete(reservation);
+                reservationService.removeReservationFromDb(eventId);
                 return ResponseEntity.ok("Usunięto wydarzenie.");
             }
         }
 
         boolean deleted = reservationService.deleteEventFromRoomCalendarIfOwner(eventId, userEmail, hallEmail);
         if (deleted) {
-            reservationRepository.deleteByOutlookEventId(eventId);
+            reservationService.removeReservationFromDb(eventId);
             return ResponseEntity.ok("Usunięto wydarzenie z kalendarza sali.");
         }
 
