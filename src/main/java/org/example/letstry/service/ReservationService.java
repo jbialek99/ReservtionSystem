@@ -3,8 +3,11 @@ package org.example.letstry.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.example.letstry.model.Hall;
 import org.example.letstry.model.Reservation;
+import org.example.letstry.model.ReservationStatus;
 import org.example.letstry.model.User;
 import org.example.letstry.repository.ReservationRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,11 +21,14 @@ import java.util.*;
 @Service
 public class ReservationService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReservationService.class);
+
     private final ReservationRepository reservationRepository;
     private final HallService hallService;
     private final GraphTokenService graphTokenService;
     private final WebClient webClient;
     private final UserService userService;
+
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSSSSSS]").withZone(ZoneOffset.UTC);
 
     public ReservationService(
@@ -43,83 +49,43 @@ public class ReservationService {
         Hall hall = hallService.findHallById(hallId)
                 .orElseThrow(() -> new IllegalArgumentException("Sala o ID " + hallId + " nie istnieje!"));
 
-        String salaEmail = hall.getEmail();
+        String hallEmail = hall.getEmail();
         String accessToken = graphTokenService.getAppAccessToken();
-
         List<Map<String, Object>> merged = new ArrayList<>();
-        Set<String> addedEventIds = new HashSet<>();
-        Set<String> addedTimeRanges = new HashSet<>();
 
-        JsonNode eventsNode = webClient.get()
-                .uri("/users/" + salaEmail + "/calendar/events")
-                .headers(headers -> headers.setBearerAuth(accessToken))
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .block();
+        try {
+            JsonNode eventsNode = webClient.get()
+                    .uri("/users/" + hallEmail + "/calendar/events")
+                    .headers(headers -> headers.setBearerAuth(accessToken))
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
 
-        if (eventsNode != null && eventsNode.has("value")) {
-            for (JsonNode event : eventsNode.get("value")) {
-                try {
-                    String eventId = event.get("id").asText();
-                    String organizerEmail = event.get("organizer").get("emailAddress").get("address").asText();
-                    String start = event.get("start").get("dateTime").asText();
-                    String end = event.get("end").get("dateTime").asText();
-                    String title = event.get("subject").asText();
-
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", eventId);
-                    map.put("title", title);
-                    map.put("start", start);
-                    map.put("end", end);
-                    map.put("email", organizerEmail);
-                    merged.add(map);
-
-                    addedEventIds.add(eventId);
-                    addedTimeRanges.add(start + "|" + end);
-                } catch (Exception e) {
-                    System.err.println("❗ Błąd podczas przetwarzania wydarzenia: " + e.getMessage());
+            if (eventsNode != null && eventsNode.has("value")) {
+                for (JsonNode event : eventsNode.get("value")) {
+                    try {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("id", event.get("id").asText());
+                        map.put("title", event.get("subject").asText());
+                        map.put("start", event.get("start").get("dateTime").asText());
+                        map.put("end", event.get("end").get("dateTime").asText());
+                        map.put("email", event.get("organizer").get("emailAddress").get("address").asText());
+                        merged.add(map);
+                    } catch (Exception e) {
+                        logger.warn("Błąd przetwarzania pojedynczego wydarzenia: {}", e.getMessage());
+                    }
                 }
             }
-        }
-
-        List<Reservation> allLocal = reservationRepository.findByHallId(hallId);
-
-        for (Reservation r : allLocal) {
-            String start = r.getStartMeeting().toString();
-            String end = r.getEndMeeting().toString();
-            String eventId = r.getOutlookEventId();
-            String rangeKey = start + "|" + end;
-
-            boolean alreadyInOutlook = eventId != null && addedEventIds.contains(eventId);
-            boolean sameTimeInOutlook = addedTimeRanges.contains(rangeKey);
-            if (alreadyInOutlook || sameTimeInOutlook) continue;
-
-            String userName = Optional.ofNullable(r.getUser())
-                    .map(user -> user.getFirstName() + " " + user.getLastName())
-                    .orElse("Nieznany użytkownik");
-
-            String rawTitle = Optional.ofNullable(r.getTitle()).orElse("");
-            String finalTitle = (!rawTitle.startsWith(userName) && !rawTitle.isBlank())
-                    ? userName + ": " + rawTitle
-                    : (rawTitle.isBlank() ? userName : rawTitle);
-
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", eventId != null ? eventId : UUID.randomUUID().toString());
-            map.put("title", finalTitle);
-            map.put("start", start);
-            map.put("end", end);
-            map.put("email", r.getOrganizerEmail());
-            merged.add(map);
+        } catch (Exception e) {
+            logger.error("Błąd podczas pobierania wydarzeń z Outlooka: {}", e.getMessage());
         }
 
         return merged;
     }
 
-
     public boolean createOutlookEventForUser(String accessToken, Reservation reservation, Hall hall) {
-        DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
-        String start = formatter.format(reservation.getStartMeeting());
-        String end = formatter.format(reservation.getEndMeeting());
+        String start = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC).format(reservation.getStartMeeting());
+        String end = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC).format(reservation.getEndMeeting());
 
         String organizerName = reservation.getUser().getFirstName() + " " + reservation.getUser().getLastName();
         String title = organizerName + ": " + reservation.getTitle();
@@ -139,11 +105,6 @@ public class ReservationService {
         );
 
         try {
-            System.out.println("📤 Wysyłam wydarzenie do Outlook:");
-            System.out.println("➡️ Start: " + start);
-            System.out.println("➡️ End: " + end);
-            System.out.println("➡️ Sala: " + hall.getEmail());
-
             JsonNode response = webClient.post()
                     .uri("/me/events")
                     .headers(headers -> headers.setBearerAuth(accessToken))
@@ -154,47 +115,43 @@ public class ReservationService {
                     .block();
 
             if (response != null) {
-                System.out.println("✅ Odpowiedź z Outlooka OK. ID wydarzenia: " + response.path("id").asText());
-
                 String organizer = response.path("organizer").path("emailAddress").path("address").asText();
-                boolean accepted = false;
+                String eventId = response.path("id").asText();
+                boolean confirmed = false;
 
                 for (JsonNode attendee : response.withArray("attendees")) {
                     String email = attendee.path("emailAddress").path("address").asText();
                     String responseStatus = attendee.path("status").path("response").asText();
-                    System.out.println("🔍 Attendee: " + email + " | Status: " + responseStatus);
 
-                    if (email.equalsIgnoreCase(hall.getEmail())) {
-                        if ("accepted".equalsIgnoreCase(responseStatus)) {
-                            accepted = true;
-                            System.out.println("✅ Sala zaakceptowała.");
-                        } else {
-                            System.out.println("❌ Sala nie zaakceptowała. Status: " + responseStatus);
-                        }
+                    if (email.equalsIgnoreCase(hall.getEmail()) && "confirmed".equalsIgnoreCase(responseStatus)) {
+                        confirmed = true;
+                        break;
                     }
                 }
 
                 reservation.setTitle(title);
                 reservation.setOrganizerEmail(organizer);
-                reservation.setOutlookEventId(accepted ? response.path("id").asText() : null);
+                if (confirmed) {
+                    reservation.setOutlookEventId(eventId);
+                    reservation.setStatus(ReservationStatus.CONFIRMED);
+                } else {
+                    reservation.setOutlookEventId(null);
+                    reservation.setStatus(ReservationStatus.PENDING);
+                }
                 reservationRepository.save(reservation);
 
-                return accepted;
-            } else {
-                System.out.println("⚠️ Brak odpowiedzi z Outlooka.");
+                return confirmed;
             }
         } catch (Exception e) {
-            System.err.println("❗ Błąd podczas wysyłania wydarzenia do Outlooka: " + e.getMessage());
+            logger.error("Błąd przy tworzeniu wydarzenia w Outlooku: {}", e.getMessage());
         }
 
         reservation.setTitle(title);
         reservation.setOutlookEventId(null);
+        reservation.setStatus(ReservationStatus.PENDING);
         reservationRepository.save(reservation);
         return false;
     }
-
-
-
 
     public boolean deleteEventFromUserCalendar(String eventId, String accessToken) {
         try {
@@ -237,6 +194,7 @@ public class ReservationService {
         } catch (WebClientResponseException.NotFound nf) {
             return false;
         } catch (Exception e) {
+            logger.error("Błąd przy próbie usunięcia wydarzenia: {}", e.getMessage());
             return false;
         }
     }
@@ -251,6 +209,7 @@ public class ReservationService {
         reservation.setHall(hall);
         reservation.setUser(user);
         reservation.setDate(Instant.now());
+        reservation.setStatus(ReservationStatus.PENDING);  // ustawiamy status na PENDING przy tworzeniu
         reservationRepository.save(reservation);
     }
 
@@ -258,7 +217,17 @@ public class ReservationService {
         return reservationRepository.findByOutlookEventId(eventId);
     }
 
+    public Optional<Reservation> findById(Long id) {
+        return reservationRepository.findById(id);
+    }
+
     public void removeReservationFromDb(String eventId) {
         reservationRepository.deleteByOutlookEventId(eventId);
+    }
+
+    public boolean isEventConfirmed(Long reservationId) {
+        return reservationRepository.findById(reservationId)
+                .map(r -> r.getStatus() == ReservationStatus.CONFIRMED)
+                .orElse(false);
     }
 }

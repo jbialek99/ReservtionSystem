@@ -31,9 +31,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         http
                 .authorizeHttpRequests(requests -> requests
-                        .requestMatchers("/login", "/home", "/css/**", "/js/**", "/logout", "/welcome",
+                        .requestMatchers("/login", "/home", "/css/**", "/js/**", "/logout", "/welcome","/layout/**",
                                 "/images/**", "/localization", "/current-localization",
-                                "/other-localization", "/building/**").permitAll()
+                                "/other-localization", "/building/**", "/here").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
