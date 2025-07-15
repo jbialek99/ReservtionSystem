@@ -3,7 +3,7 @@ package org.example.letstry.model;
 import jakarta.persistence.*;
 
 import java.time.Instant;
-import java.time.ZonedDateTime;
+
 
 @Entity
 @Table(name = "reservations")
@@ -19,6 +19,7 @@ public class Reservation {
     private Instant endMeeting;
     private String outlookEventId;
     private String organizerEmail;
+    private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -27,6 +28,9 @@ public class Reservation {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "hall_id", nullable = false)
     private Hall hall;
+
+    @Enumerated(EnumType.STRING)
+    private ReservationStatus status;
 
     // Getters and setters
 
@@ -85,5 +89,21 @@ public class Reservation {
     }
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public ReservationStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ReservationStatus status) {
+        this.status = status;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }

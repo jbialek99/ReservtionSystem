@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="pl" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kalendarz sali</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" />
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
     <style>
         body {
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -114,9 +115,33 @@
         const hallEmail = calendarEl.dataset.hallEmail;
         const userEmail = calendarEl.dataset.userEmail;
 
+        async function checkreservationStatus(bookingId) {
+            try {
+                const response = await fetch(`/api/bookings/${bookingId}/status`);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`Błąd HTTP ${response.status}: ${errorText}`);
+                    return { error: `Błąd serwera: ${response.status}` };
+                }
+
+                const contentType = response.headers.get("Content-Type");
+                if (contentType && contentType.includes("application/json")) {
+                    return await response.json();
+                } else {
+                    console.error("Nieprawidłowy typ odpowiedzi lub pusta odpowiedź");
+                    return { error: "Nieprawidłowa odpowiedź serwera" };
+                }
+
+            } catch (error) {
+                console.error("Błąd podczas sprawdzania statusu rezerwacji:", error);
+                return { error: "Błąd sieci lub serwera" };
+            }
+        }
+
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
-            timeZone: 'UTC',
+            timeZone: 'Europe/Warsaw',
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
@@ -126,26 +151,14 @@
             selectable: true,
             events: `/api/reservations/hall/${hallId}`,
 
-            eventClick: info => {
-                const isOwner = info.event.extendedProps.email === userEmail;
-                if (!isOwner) return alert("Możesz usunąć tylko swoje wydarzenia.");
-
-                if (confirm("Czy chcesz usunąć to wydarzenie?")) {
-                    fetch(`/api/reservations/delete/${info.event.id}?hallEmail=${hallEmail}`, {
-                        method: 'DELETE'
-                    }).then(res => {
-                        if (!res.ok) throw new Error("Usunięto wydarzenie");
-                        info.event.remove();
-                        alert("✅ Usunięto wydarzenie.");
-                    }).catch(err => alert(err.message));
-                }
-            },
-
-            dateClick: info => {
+            dateClick: async info => {
                 const now = new Date();
                 const start = new Date(info.date);
                 const end = new Date(start.getTime() + 60 * 60 * 1000);
-                if (start < now) return alert("⛔ Nie można rezerwować w przeszłości.");
+                if (start < now) {
+                    alert("⛔ Nie można rezerwować w przeszłości.");
+                    return;
+                }
 
                 const title = prompt("Podaj tytuł rezerwacji:");
                 if (!title) return;
@@ -153,24 +166,101 @@
                 const startIso = start.toISOString();
                 const endIso = end.toISOString();
 
-                fetch(`/api/reservations/hall/${hallId}/reserve`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        startMeeting: startIso,
-                        endMeeting: endIso,
-                        title: title
-                    })
-                }).then(async res => {
-                    const msg = await res.text();
-                    if (!res.ok) throw new Error(msg);
-                    alert('✅ ' + msg);
-                    calendar.refetchEvents();
-                }).catch(err => alert('❌ ' + err.message));
+                // Tworzenie komunikatu ładowania
+                const loading = document.createElement("div");
+                loading.textContent = "⏳ Tworzenie rezerwacji... Proszę czekać.";
+                loading.style.position = "fixed";
+                loading.style.top = "20px";
+                loading.style.left = "50%";
+                loading.style.transform = "translateX(-50%)";
+                loading.style.background = "#fff";
+                loading.style.padding = "1rem";
+                loading.style.border = "1px solid #ccc";
+                loading.style.borderRadius = "8px";
+                loading.style.zIndex = "9999";
+                document.body.appendChild(loading);
+
+                try {
+                    const response = await fetch(`/api/reservations/hall/${hallId}/reserve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            startMeeting: startIso,
+                            endMeeting: endIso,
+                            title: title
+                        })
+                    });
+
+                    const responseData = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(responseData.error || "Nie udało się utworzyć rezerwacji.");
+                    }
+
+                    const bookingId = responseData.bookingId;
+                    const initialStatus = responseData.status;
+
+                    if (initialStatus === "CONFIRMED") {
+                        document.body.removeChild(loading);
+                        alert("✅ Rezerwacja potwierdzona!");
+                        calendar.refetchEvents();
+                        return;
+                    }
+
+                    let pollInterval = setInterval(async () => {
+                        const result = await checkreservationStatus(bookingId);
+
+                        if (result.error) {
+                            clearInterval(pollInterval);
+                            document.body.removeChild(loading);
+                            alert("❌ Błąd sprawdzania statusu: " + result.error);
+                            return;
+                        }
+
+                        if (result.status === "CONFIRMED") {
+                            clearInterval(pollInterval);
+                            document.body.removeChild(loading);
+                            alert("✅ Rezerwacja potwierdzona!");
+                            calendar.refetchEvents();
+                        } else if (result.status === "DECLINED") {
+                            clearInterval(pollInterval);
+                            document.body.removeChild(loading);
+                            alert("❌ Rezerwacja została odrzucona.");
+                            calendar.refetchEvents();
+                        }
+                        // W przypadku PENDING – nic nie robimy
+
+                    }, 3000);
+
+                } catch (error) {
+                    document.body.removeChild(loading);
+                    alert("❌ " + error.message);
+                }
             },
 
-            // 🔧 Tooltip z informacją o użytkowniku
-            eventDidMount: function(info) {
+            eventClick: info => {
+                const eventEmail = info.event.extendedProps.email || "";
+                const isOwner = eventEmail.toLowerCase() === (userEmail || "").toLowerCase();
+
+                if (!isOwner) {
+                    alert("Możesz usunąć tylko swoje wydarzenia.");
+                    return;
+                }
+
+                if (confirm("Czy chcesz usunąć to wydarzenie?")) {
+                    fetch(`/api/reservations/delete/${info.event.id}?hallEmail=${encodeURIComponent(hallEmail)}`, {
+                        method: 'DELETE'
+                    })
+                        .then(res => {
+                            if (!res.ok) return res.text().then(text => { throw new Error(text || "Błąd usuwania wydarzenia."); });
+                            info.event.remove();
+                            alert("✅ Usunięto wydarzenie.");
+                        })
+                        .catch(err => alert("❌ " + err.message));
+                }
+            },
+
+            eventDidMount: info => {
                 const tooltip = info.event.extendedProps.tooltip;
                 if (tooltip) {
                     info.el.setAttribute('title', tooltip);
